@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart } from 'lucide-react';
 import { CustomerSearch } from '../components/pos/CustomerSearch';
 import { BarcodeScanner } from '../components/pos/BarcodeScanner';
@@ -6,25 +6,94 @@ import { CartItem } from '../components/pos/CartItem';
 import { CartNotes } from '../components/pos/CartNotes';
 import { DiscountSection } from '../components/pos/DiscountSection';
 import { PaymentMethods, type PaymentMethod } from '../components/pos/PaymentMethods';
+import { BranchPOSSelector } from '../components/pos/BranchPOSSelector';
 import { useLanguageStore } from '../store/useLanguageStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { useBusinessStore } from '../store/useBusinessStore';
+import { getBranchesByBusinessCode } from '../services/businessService';
 import { posTranslations } from '../translations/pos';
+import { getAvailableProducts } from '../services/posService';
 import type { CartItem as CartItemType, Customer, Discount } from '../types/pos';
+import type { Product } from '../types/product';
 
 export function POSPage() {
   const { language } = useLanguageStore();
+  const { user } = useAuthStore();
+  const { branches, setBranches } = useBusinessStore();
   const t = posTranslations[language];
+  
   const [cart, setCart] = useState<CartItemType[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [nextCustomerId, setNextCustomerId] = useState(3); // For demo purposes
   const [cartNotes, setCartNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      if (user?.businessCode) {
+        try {
+          const branchData = await getBranchesByBusinessCode(user.businessCode);
+          setBranches(branchData);
+          setIsInitialLoad(false);
+        } catch (error) {
+          console.error('Error loading branches:', error);
+          setError(t.errorLoadingBranches);
+          setIsInitialLoad(false);
+        }
+      }
+    };
+    
+    loadBranches();
+  }, [user?.businessCode, setBranches]);
+
+  useEffect(() => {
+    // Only load products after initial branch load and when we have a selected branch
+    if (!isInitialLoad && user?.businessCode && selectedBranchId) {
+      loadProducts();
+    }
+  }, [user?.businessCode, selectedBranchId, isInitialLoad]);
+
+  const loadProducts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const selectedBranch = branches.find(b => b.branch_id === selectedBranchId);
+      if (!selectedBranch) {
+        throw new Error(t.invalidBranch);
+      }
+
+      const data = await getAvailableProducts(
+        user!.businessCode,
+        selectedBranchId === 'all' ? undefined : selectedBranch.branch_name
+      );
+      setProducts(data);
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError(t.errorLoadingProducts);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleScan = (barcode: string) => {
-    // Simulate finding product by barcode
-    const product = mockProducts.find(p => p.barcode === barcode);
+    const product = products.find(p => p.barcode === barcode);
     if (product) {
-      addToCart(product);
+      addToCart({
+        id: product.product_id.toString(),
+        barcode: product.barcode || '',
+        nameAr: product.product_name,
+        type: product.type,
+        price: product.price,
+        quantity: 1,
+        category: '',
+        expiryDate: product.expiry_date || undefined
+      });
     }
   };
 
@@ -95,6 +164,9 @@ export function POSPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="col-span-full">
               <BarcodeScanner onScan={handleScan} />
+              <div className="mt-4">
+                <BranchPOSSelector onBranchChange={setSelectedBranchId} />
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -113,22 +185,71 @@ export function POSPage() {
 
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {mockProducts
+            {isLoading ? (
+              <div className="col-span-full flex items-center justify-center py-8">
+                <p className="text-gray-500">{t.loading}</p>
+              </div>
+            ) : error ? (
+              <div className="col-span-full flex items-center justify-center py-8 text-center">
+                <p className="text-red-500">{error}</p>
+                <button
+                  onClick={loadProducts}
+                  className="mt-2 text-indigo-600 hover:text-indigo-800"
+                >
+                  {t.retry}
+                </button>
+              </div>
+            ) : products
               .filter(product => 
-                product.nameAr.includes(searchQuery) ||
-                product.barcode.includes(searchQuery)
+                product.product_name.includes(searchQuery) ||
+                (product.barcode && product.barcode.includes(searchQuery))
               )
               .map((product) => (
                 <div
-                  key={product.id}
-                  onClick={() => addToCart(product)}
+                  key={product.product_id}
+                  onClick={() => addToCart({
+                    id: product.product_id.toString(),
+                    barcode: product.barcode || '',
+                    nameAr: product.product_name,
+                    type: product.type,
+                    price: product.price,
+                    quantity: 1,
+                    category: '',
+                    expiryDate: product.expiry_date || undefined
+                  })}
                   className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
                 >
-                  <div className="aspect-square bg-gray-100 rounded-md mb-3"></div>
-                  <h3 className="font-medium">{product.nameAr}</h3>
+                  <div className="aspect-square bg-gray-100 rounded-md mb-3">
+                    {product.image_url && (
+                      <img
+                        src={product.image_url}
+                        alt={product.product_name}
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                    )}
+                  </div>
+                  <h3 className="font-medium">{product.product_name}</h3>
                   <p className="text-sm text-gray-500">
                     {product.type === 'food' ? t.food : t.product}
+                    {product.business_name_of_product && (
+                      <span className="mr-1 text-xs text-indigo-600">
+                        ({product.business_name_of_product})
+                      </span>
+                    )}
                   </p>
+                  {product.type === 'food' && product.expiry_date && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {t.expiryDate}: {new Date(product.expiry_date).toLocaleDateString()}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-1">
+                    {t.inStock}: {product.quantity}
+                  </p>
+                  {product.business_code_if_vendor && (
+                    <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                      {t.vendorProduct}
+                    </div>
+                  )}
                   <p className="text-indigo-600 font-bold mt-1">
                     {product.price.toFixed(2)} {t.currency}
                   </p>

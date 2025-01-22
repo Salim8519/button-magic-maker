@@ -2,6 +2,13 @@ export const posTranslations = {
   ar: {
     pointOfSale: 'نقطة البيع',
     searchProduct: 'ابحث عن منتج...',
+    loading: 'جاري التحميل...',
+    retry: 'إعادة المحاولة',
+    errorLoadingProducts: 'حدث خطأ أثناء تحميل المنتجات',
+    errorLoadingBranches: 'حدث خطأ أثناء تحميل الفروع',
+    invalidBranch: 'الفرع المحدد غير صالح',
+    expiryDate: 'تاريخ الانتهاء',
+    inStock: 'المتوفر',
     scanBarcode: 'مسح الباركود',
     scannerActive: 'وضع المسح نشط',
     enterManually: 'أدخل الباركود يدوياً...',
@@ -39,13 +46,24 @@ export const posTranslations = {
     cashPayment: 'نقدي',
     creditPayment: 'بطاقة ائتمان',
     onlinePayment: 'دفع إلكتروني',
-    confirmCash: 'تأكيد توفر النقد',
+    confirmPayment: 'تأكيد الدفع',
+    confirm: 'تأكيد',
     confirmCashMessage: 'هل تم استلام المبلغ النقدي بالكامل؟',
-    confirmCashRequired: 'يجب تأكيد استلام النقد قبل إتمام العملية'
+    confirmCashRequired: 'يجب تأكيد استلام النقد قبل إتمام العملية',
+    allBranches: 'جميع الفروع',
+    selectBranch: 'اختر الفرع',
+    vendorProduct: 'منتج مورد'
   },
   en: {
     pointOfSale: 'Point of Sale',
     searchProduct: 'Search for a product...',
+    loading: 'Loading...',
+    retry: 'Retry',
+    errorLoadingProducts: 'Error loading products',
+    errorLoadingBranches: 'Error loading branches',
+    invalidBranch: 'Selected branch is invalid',
+    expiryDate: 'Expiry Date',
+    inStock: 'In Stock',
     scanBarcode: 'Scan Barcode',
     scannerActive: 'Scanner Active',
     enterManually: 'Enter barcode manually...',
@@ -83,8 +101,12 @@ export const posTranslations = {
     cashPayment: 'Cash',
     creditPayment: 'Credit Card',
     onlinePayment: 'Online Payment',
-    confirmCash: 'Confirm Cash Available',
+    confirmPayment: 'Confirm Payment',
+    confirm: 'Confirm',
     confirmCashMessage: 'Have you received the full cash amount?',
-    confirmCashRequired: 'You must confirm cash receipt before proceeding'
+    confirmCashRequired: 'You must confirm cash receipt before proceeding',
+    allBranches: 'All Branches',
+    selectBranch: 'Select Branch',
+    vendorProduct: 'Vendor Product'
   }
 };
